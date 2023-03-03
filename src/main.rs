@@ -1,16 +1,24 @@
+use clap::Parser;
 use env_logger;
 use log::info;
 use rand::{thread_rng, Rng};
+use std::env;
 use std::fs::read_to_string;
 
 fn main() {
+    let args = Args::parse();
+
+    if args.verbose {
+        env::set_var("RUST_LOG", "info");
+    }
+
     env_logger::init();
 
     info!("Started");
     let input = "Hello";
     // Read "full.txt" to string
     info!("Reading file");
-    let file = read_to_string("/Volumes/Storage/git/clean.txt").unwrap();
+    let file = read_to_string(args.input).unwrap();
     info!("File read");
     info!("Splitting file");
     let words: Vec<&str> = splitter(&file);
@@ -24,6 +32,22 @@ fn main() {
         sentence.push(next(found));
         println!("{}", sentence.join(" "));
     }
+}
+
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+    #[arg(short, long, default_value = "10")]
+    length: usize,
+
+    #[arg(short, long, default_value = "false")]
+    verbose: bool,
+
+    #[arg(short, long, default_value = "/Volumes/Storage/git/clean.txt")]
+    input: String,
+
+    #[arg(short, long, default_value = "8")]
+    threads: usize,
 }
 
 fn splitter(text: &str) -> Vec<&str> {
@@ -55,23 +79,6 @@ fn finder<'a>(words: &'a Vec<&str>, input: &str) -> Vec<&'a str> {
 
     result
 }
-
-// fn finder(words: Vec<&str>, input: &str) -> Vec<String> {
-//     let mut result: Vec<String> = Vec::new();
-//     let mut count = 0;
-//     for word in &words {
-//         if word.to_string() == input {
-//             // Push the item after the matched word
-//             result.push(words[count + 1].to_string());
-//             info!("Found word");
-//         }
-//         count += 1;
-//     }
-//     info!("Words found");
-//     info!("{:?}", result);
-//
-//     result
-// }
 
 fn next(words: Vec<&str>) -> String {
     let random_indx = thread_rng().gen_range(0..words.len());
