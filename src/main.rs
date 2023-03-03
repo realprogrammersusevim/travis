@@ -43,7 +43,7 @@ struct Args {
     #[arg(short, long, default_value = "false")]
     verbose: bool,
 
-    #[arg(short, long, default_value = "/Volumes/Storage/git/clean.txt")]
+    #[arg(short, long)]
     input: String,
 
     #[arg(short, long, default_value = "8")]
