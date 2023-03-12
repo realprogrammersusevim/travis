@@ -2,6 +2,7 @@ use clap::Parser;
 use env_logger;
 use log::info;
 use rand::{thread_rng, Rng};
+use rayon::prelude::*;
 use std::env;
 use std::fs::read_to_string;
 
@@ -15,21 +16,39 @@ fn main() {
     env_logger::init();
 
     info!("Started");
-    let input = "Hello";
+    let input = args.input;
     // Read "full.txt" to string
     info!("Reading file");
-    let file = read_to_string(args.input).unwrap();
+    let file = read_to_string(args.file).unwrap();
     info!("File read");
     info!("Splitting file");
-    let words: Vec<&str> = splitter(&file);
+    let mut words = Vec::new();
+    for line in file.split('\n') {
+        for word in line.split(' ') {
+            words.push(word)
+        }
+    }
     info!("File split");
 
     info!("Finding words");
     let mut sentence: Vec<String> = vec![input.to_string()];
-    for i in 0..5 {
-        let found = finder(&words, &sentence[i].clone());
+    for i in 0..args.length {
+        let found: &Vec<_> = &words
+            .par_iter()
+            .enumerate()
+            .filter(|(_, word)| *word == &sentence[i].clone())
+            .map(|(index, _)| words.get(index + 1).unwrap_or(&""))
+            .collect();
 
-        sentence.push(next(found));
+        info!("{found:?}");
+
+        let random_indx = thread_rng().gen_range(0..found.len());
+        let next = found[random_indx].to_string();
+
+        info!("{next:?}");
+
+        sentence.push(next);
+
         println!("{}", sentence.join(" "));
     }
 }
@@ -46,41 +65,9 @@ struct Args {
     #[arg(short, long)]
     input: String,
 
+    #[arg(short, long, default_value = "/Volumes/Storage/git/clean.txt")]
+    file: String,
+
     #[arg(short, long, default_value = "8")]
     threads: usize,
-}
-
-fn splitter(text: &str) -> Vec<&str> {
-    // Split text by newlines and spaces
-    let mut words = Vec::new();
-    for line in text.split('\n') {
-        for word in line.split(' ') {
-            words.push(word)
-        }
-    }
-
-    words
-}
-
-fn finder<'a>(words: &'a Vec<&str>, input: &str) -> Vec<&'a str> {
-    let mut result: Vec<&str> = Vec::new();
-    let mut count = 0;
-    for word in words {
-        if word == &input {
-            // Push the item after the matched word
-            let found = words.get(count + 1).unwrap_or(&"");
-            result.push(found);
-            info!("Found word {}", found);
-        }
-        count += 1;
-    }
-    info!("Words found");
-    info!("{:?}", result);
-
-    result
-}
-
-fn next(words: Vec<&str>) -> String {
-    let random_indx = thread_rng().gen_range(0..words.len());
-    words[random_indx].to_string()
 }
