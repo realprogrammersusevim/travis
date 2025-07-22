@@ -2,7 +2,7 @@ use clap::Parser;
 use env_logger;
 use log::info;
 use rand::{thread_rng, Rng};
-use rayon::prelude::*;
+use std::collections::HashMap;
 use std::env;
 use std::fs::read_to_string;
 use std::io::Write;
@@ -23,37 +23,48 @@ fn main() {
     let file = read_to_string(args.file).unwrap();
     info!("File read");
     info!("Splitting file");
-    let mut words: Vec<String> = Vec::new();
-    for line in file.split('\n') {
-        for word in line.split(' ') {
-            words.push(word.replace("\r", ""))
-        }
-    }
+    let words: Vec<String> = file.split_whitespace().map(String::from).collect();
     info!("File split");
 
-    info!("Finding words");
-    let placeholder = &String::from("");
+    info!("Building lookup map");
+    let mut word_map: HashMap<String, Vec<String>> = HashMap::new();
+    if !words.is_empty() {
+        for i in 0..(words.len() - 1) {
+            word_map
+                .entry(words[i].clone())
+                .or_default()
+                .push(words[i + 1].clone());
+        }
+    }
+    info!("Lookup map built");
+
+    info!("Generating sentence");
     let mut sentence: Vec<String> = vec![input.to_string()];
+
+    // Save cursor position. We'll restore to this position on each update.
+    print!("\x1B[s");
+    std::io::stdout().flush().unwrap();
+
     for i in 0..args.length {
-        let found: &Vec<_> = &words
-            .par_iter()
-            .enumerate()
-            .filter(|(_, word)| *word == &sentence[i].clone())
-            .map(|(index, _)| words.get(index + 1).unwrap_or(placeholder))
-            .collect();
+        let current_word = &sentence[i];
 
-        // info!("{found:?}");
-
-        let random_indx = thread_rng().gen_range(0..found.len());
-        let next = found[random_indx].to_string();
-
-        info!("{next:?}");
-
-        sentence.push(next);
+        if let Some(next_words) = word_map.get(current_word) {
+            let random_indx = thread_rng().gen_range(0..next_words.len());
+            let next_word = next_words[random_indx].clone();
+            sentence.push(next_word);
+        } else {
+            info!(
+                "Word '{}' not in text or has no followers, stopping.",
+                current_word
+            );
+            break;
+        }
 
         info!("{sentence:?}");
 
-        print!("\r{}", sentence.join(" "));
+        // \x1B[u: Restore saved cursor position.
+        // \x1B[J: Clear from cursor to end of screen.
+        print!("\x1B[u\x1B[J{}", sentence.join(" "));
         std::io::stdout().flush().unwrap();
     }
     println!()
@@ -71,7 +82,7 @@ struct Args {
     #[arg(short, long)]
     input: String,
 
-    #[arg(short, long, default_value = "/Volumes/Storage/git/clean.txt")]
+    #[arg(short, long)]
     file: String,
 
     #[arg(short, long, default_value = "8")]
