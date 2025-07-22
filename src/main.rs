@@ -47,11 +47,12 @@ fn main() {
 
     for i in 0..args.length {
         let current_word = &sentence[i];
+        print!("{} ", current_word.clone());
 
         if let Some(next_words) = word_map.get(current_word) {
             let random_indx = thread_rng().gen_range(0..next_words.len());
             let next_word = next_words[random_indx].clone();
-            sentence.push(next_word);
+            sentence.push(next_word.clone());
         } else {
             info!(
                 "Word '{}' not in text or has no followers, stopping.",
@@ -61,13 +62,8 @@ fn main() {
         }
 
         info!("{sentence:?}");
-
-        // \x1B[u: Restore saved cursor position.
-        // \x1B[J: Clear from cursor to end of screen.
-        print!("\x1B[u\x1B[J{}", sentence.join(" "));
-        std::io::stdout().flush().unwrap();
     }
-    println!()
+    println!(" {}", sentence.last().unwrap())
 }
 
 #[derive(Parser, Debug)]
